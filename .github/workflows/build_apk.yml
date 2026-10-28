@@ -19,11 +19,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup Java JDK 17
+      - name: Setup Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Prepare Web Assets & Install Capacitor
         run: |
@@ -31,13 +31,12 @@ jobs:
           cp index.html app.js manifest.json sw.js www/ || true
           cp icon-192.png icon-512.png www/ || true
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
           npx cap init "Food GI Scanner" "com.foodgi.scanner" --web-dir www
           npx cap add android
 
-      - name: Grant Permissions & Configure Android SDK
+      - name: Configure Android SDK
         run: |
-          sed -i '/<\/manifest>/i <uses-permission android:name="android.permission.CAMERA" \/>\n<uses-permission android:name="android.permission.INTERNET" \/>' android/app/src/main/AndroidManifest.xml
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
@@ -45,7 +44,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
