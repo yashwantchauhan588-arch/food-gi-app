@@ -25,13 +25,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Capacitor and Create Android App
+      - name: Prepare Web Assets & Install Capacitor
         run: |
+          mkdir -p www
+          cp index.html app.js manifest.json sw.js www/ || true
+          cp icon-192.png icon-512.png www/ || true
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Food GI Scanner" "com.foodgi.scanner" --web-dir .
+          npx cap init "Food GI Scanner" "com.foodgi.scanner" --web-dir www
           npx cap add android
-          npx cap sync android
 
       - name: Grant Camera & Internet Permissions
         run: |
