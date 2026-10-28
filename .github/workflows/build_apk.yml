@@ -25,10 +25,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Capacitor & Build Android Project
+      - name: Install Capacitor and Create Android App
         run: |
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
@@ -36,16 +33,17 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Grant Camera Permissions
+      - name: Grant Camera & Internet Permissions
         run: |
           sed -i '/<\/manifest>/i <uses-permission android:name="android.permission.CAMERA" \/>\n<uses-permission android:name="android.permission.INTERNET" \/>' android/app/src/main/AndroidManifest.xml
 
       - name: Build Android APK
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Food-GI-Scanner-APK
