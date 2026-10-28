@@ -186,7 +186,7 @@ function openSettingsModal() {
   const select = document.getElementById('modelSelect');
 
   input.value = localStorage.getItem('gemini_api_key') || BUILTIN_API_KEY;
-  select.value = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+  select.value = localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
 
   modal.classList.remove('hidden');
   lucide.createIcons();
@@ -259,9 +259,9 @@ async function analyzeFoodImage() {
   document.getElementById('resultCard').classList.add('hidden');
 
   const modelsToTry = [
-    localStorage.getItem('gemini_model') || 'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.8-flash'
   ];
 
   let resultData = null;
