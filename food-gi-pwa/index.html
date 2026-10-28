@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Food GI Scanner - AI Glycemic Index</title>
+
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Food GI">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .scanner-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #10b981, #34d399, transparent);
+      box-shadow: 0 0 15px #10b981, 0 0 30px #10b981;
+      animation: scan 2s linear infinite;
+    }
+    @keyframes scan {
+      0% { top: 0%; opacity: 0.8; }
+      50% { top: 96%; opacity: 1; }
+      100% { top: 0%; opacity: 0.8; }
+    }
+    /* Hide scrollbars but keep scrolling */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white pb-10">
+
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <i data-lucide="activity" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
+          Food GI Scanner
+          <span class="text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">AI</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Glycemic Index & Nutrition</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <!-- Install PWA Button (Hidden by default, shown if installable) -->
+      <button id="pwaInstallBtn" class="hidden text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>Install App</span>
+      </button>
+
+      <!-- Share / Mobile QR Button -->
+      <button id="openQrBtn" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition" title="Open on Phone">
+        <i data-lucide="smartphone" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Settings / API Key Button -->
+      <button id="openSettingsBtn" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition relative" title="API Key Settings">
+        <i data-lucide="settings" class="w-4 h-4"></i>
+        <span id="apiKeyDot" class="w-2 h-2 rounded-full bg-amber-400 absolute top-1.5 right-1.5 ring-2 ring-slate-900"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 w-full max-w-lg mx-auto px-4 py-4 space-y-4">
+
+    <!-- API Key Notice Banner if not set -->
+    <div id="apiKeyBanner" class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="key" class="w-4 h-4 text-amber-400 shrink-0"></i>
+        <span>Gemini API Key add karein taaki camera photo se GI nikal sake.</span>
+      </div>
+      <button onclick="openSettingsModal()" class="px-2.5 py-1 bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 shrink-0 text-xs transition">
+        Add Key
+      </button>
+    </div>
+
+    <!-- Capture Section -->
+    <div class="bg-slate-900/60 rounded-3xl p-4 border border-slate-800/80 shadow-xl space-y-3.5">
+      <div class="flex items-center justify-between px-1">
+        <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Photo Capture</span>
+        <span class="text-[11px] text-slate-400">Click or Upload</span>
+      </div>
+
+      <!-- Live / Uploaded Image Preview Frame -->
+      <div id="previewContainer" class="relative w-full aspect-[4/3] rounded-2xl bg-slate-950 border-2 border-dashed border-slate-700 overflow-hidden flex flex-col items-center justify-center group cursor-pointer transition hover:border-emerald-500/50">
+        
+        <!-- Default Empty State -->
+        <div id="emptyState" class="text-center p-6 space-y-3">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-slate-800/80 flex items-center justify-center text-slate-400 group-hover:text-emerald-400 group-hover:scale-105 transition">
+            <i data-lucide="camera" class="w-8 h-8"></i>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-200">Apne khane ki photo lein</p>
+            <p class="text-xs text-slate-400 mt-1">Roti, Rice, Fruits, Snacks, ya Puri Plate</p>
+          </div>
+        </div>
+
+        <!-- Image Element (Hidden initially) -->
+        <img id="imagePreview" class="hidden w-full h-full object-cover" alt="Food Preview" />
+
+        <!-- Scanning Overlay Line -->
+        <div id="scannerOverlay" class="hidden absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]">
+          <div class="scanner-line"></div>
+          <div class="absolute bottom-4 inset-x-4 bg-slate-900/90 border border-emerald-500/40 rounded-xl p-3 text-center shadow-lg">
+            <div class="flex items-center justify-center gap-2 text-emerald-400 text-xs font-semibold">
+              <i data-lucide="sparkles" class="w-4 h-4 animate-spin"></i>
+              <span id="scanStatusText">Gemini AI analyzing food...</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">Glycemic Index & Nutrition calculate ho raha hai</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <!-- Native Camera Button -->
+        <label class="cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 active:scale-[0.98] transition">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+          <span class="text-sm">Camera 📸</span>
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        </label>
+
+        <!-- Gallery / Upload Button -->
+        <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 border border-slate-700 active:scale-[0.98] transition">
+          <i data-lucide="image" class="w-5 h-5 text-slate-300"></i>
+          <span class="text-sm">Gallery 🖼️</span>
+          <input type="file" id="galleryInput" accept="image/*" class="hidden">
+        </label>
+      </div>
+
+      <!-- Analyze Button (Active when photo selected) -->
+      <button id="analyzeBtn" class="hidden w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition">
+        <i data-lucide="sparkles" class="w-5 h-5"></i>
+        <span>Calculate GI (Analyze)</span>
+      </button>
+
+      <!-- Quick Test Food Suggestions -->
+      <div class="pt-2">
+        <p class="text-[11px] text-slate-400 mb-2 flex items-center gap-1.5">
+          <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Sample test images (agar abhi photo na ho):</span>
+        </p>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button onclick="loadSampleFood('apple')" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700/60 whitespace-nowrap shrink-0 transition">
+            🍎 Apple (Low GI)
+          </button>
+          <button onclick="loadSampleFood('rice')" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700/60 whitespace-nowrap shrink-0 transition">
+            🍚 White Rice (High GI)
+          </button>
+          <button onclick="loadSampleFood('roti')" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700/60 whitespace-nowrap shrink-0 transition">
+            🫓 Roti + Dal (Med GI)
+          </button>
+          <button onclick="loadSampleFood('gulabjamun')" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700/60 whitespace-nowrap shrink-0 transition">
+            🍮 Gulab Jamun (Very High GI)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Alert Card -->
+    <div id="errorCard" class="hidden p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs space-y-2">
+      <div class="flex items-center gap-2 font-bold text-rose-400">
+        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+        <span id="errorTitle">Analysis Error</span>
+      </div>
+      <p id="errorMessage" class="text-slate-300"></p>
+    </div>
+
+    <!-- Result Card -->
+    <div id="resultCard" class="hidden space-y-4">
+      
+      <!-- Primary GI Card -->
+      <div class="bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl p-5 border border-slate-800 shadow-2xl relative overflow-hidden">
+        
+        <!-- Ambient Glow -->
+        <div id="resultGlow" class="absolute -top-20 -right-20 w-48 h-48 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none"></div>
+
+        <!-- Food Title & Portion -->
+        <div class="flex items-start justify-between gap-3 border-b border-slate-800 pb-3.5">
+          <div>
+            <h2 id="foodName" class="text-xl font-extrabold text-white tracking-tight">Food Name</h2>
+            <p id="foodHindiDesc" class="text-xs text-slate-400 mt-0.5">Description</p>
+          </div>
+          <span id="portionBadge" class="text-[11px] font-medium bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700 shrink-0">
+            ~150g portion
+          </span>
+        </div>
+
+        <!-- GI & GL Score Gauge Grid -->
+        <div class="grid grid-cols-2 gap-3 py-4 items-center">
+          
+          <!-- GI Meter -->
+          <div class="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Glycemic Index (GI)</span>
+            
+            <!-- Large Score Display -->
+            <div class="relative flex items-center justify-center my-1">
+              <span id="giScoreNumber" class="text-4xl font-black text-emerald-400 tracking-tighter">--</span>
+              <span class="text-xs text-slate-500 font-semibold ml-1">/100</span>
+            </div>
+
+            <!-- GI Badge -->
+            <span id="giCategoryBadge" class="mt-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Low GI (≤ 55)
+            </span>
+          </div>
+
+          <!-- Glycemic Load (GL) Meter -->
+          <div class="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Glycemic Load (GL)</span>
+            
+            <div class="relative flex items-center justify-center my-1">
+              <span id="glScoreNumber" class="text-4xl font-black text-teal-300 tracking-tighter">--</span>
+            </div>
+
+            <!-- GL Badge -->
+            <span id="glCategoryBadge" class="mt-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              Low Load (≤ 10)
+            </span>
+          </div>
+        </div>
+
+        <!-- GI Reference Bar Scale -->
+        <div class="space-y-1.5 pt-1">
+          <div class="flex justify-between text-[10px] font-semibold">
+            <span class="text-emerald-400">Low (0-55)</span>
+            <span class="text-amber-400">Medium (56-69)</span>
+            <span class="text-rose-400">High (70+)</span>
+          </div>
+          <div class="h-2 w-full rounded-full bg-slate-800 flex overflow-hidden p-0.5 relative">
+            <div class="w-[55%] bg-emerald-500 h-full rounded-l-full"></div>
+            <div class="w-[14%] bg-amber-500 h-full"></div>
+            <div class="w-[31%] bg-rose-500 h-full rounded-r-full"></div>
+            <!-- Pin indicator -->
+            <div id="giPinIndicator" class="absolute top-0 bottom-0 w-2 bg-white rounded-full shadow-md transition-all duration-700" style="left: 30%;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Diabetic Safety & Advice Card -->
+      <div id="diabeticAdviceCard" class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 space-y-2.5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" id="diabeticIcon" class="w-5 h-5 text-emerald-400"></i>
+          <h3 id="diabeticHeading" class="text-sm font-bold text-white">Diabetic Safety Verdict</h3>
+        </div>
+        <p id="diabeticAdviceText" class="text-xs text-slate-300 leading-relaxed">
+          Loading health advice...
+        </p>
+      </div>
+
+      <!-- Nutritional Grid -->
+      <div class="bg-slate-900/60 rounded-2xl p-4 border border-slate-800/80 space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Estimated Nutrition (Per Serving)</h3>
+        
+        <div class="grid grid-cols-4 gap-2 text-center">
+          <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+            <span class="text-[10px] text-slate-400 block font-medium">Carbs</span>
+            <span id="nutriCarbs" class="text-sm font-bold text-slate-100">-- g</span>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+            <span class="text-[10px] text-slate-400 block font-medium">Sugar</span>
+            <span id="nutriSugar" class="text-sm font-bold text-slate-100">-- g</span>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+            <span class="text-[10px] text-slate-400 block font-medium">Fiber</span>
+            <span id="nutriFiber" class="text-sm font-bold text-emerald-400">-- g</span>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+            <span class="text-[10px] text-slate-400 block font-medium">Calories</span>
+            <span id="nutriCalories" class="text-sm font-bold text-amber-300">-- kcal</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ingredients Detected -->
+      <div class="bg-slate-900/40 rounded-2xl p-3.5 border border-slate-800/60">
+        <span class="text-[11px] font-semibold text-slate-400 block mb-2">Detected Ingredients:</span>
+        <div id="ingredientsList" class="flex flex-wrap gap-1.5">
+          <!-- Chips injected by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- History / Recent Scans -->
+    <div class="pt-2">
+      <div class="flex items-center justify-between mb-2 px-1">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Recent Scans</span>
+        <button onclick="clearHistory()" class="text-[11px] text-slate-500 hover:text-rose-400 transition">Clear</button>
+      </div>
+      <div id="historyList" class="space-y-2">
+        <p class="text-xs text-slate-500 text-center py-4">Abhi tak koi scan nahi kiya gaya</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Settings Modal (API Key) -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="key" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="text-base font-bold text-white">Google Gemini API Settings</h3>
+        </div>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Gemini API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+          <p class="text-[11px] text-slate-400 mt-1">Aapki API key aapke browser me securely save rahegi.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">AI Model</label>
+          <select id="modelSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fastest & Accurate - Recommended)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="saveApiKey()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition">
+          Save Settings
+        </button>
+        <button onclick="closeSettingsModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Code Modal (Open on Phone) -->
+  <div id="qrModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <i data-lucide="smartphone" class="w-4 h-4 text-emerald-400"></i>
+          Apne Phone me Kholein
+        </h3>
+        <button onclick="closeQrModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-3 bg-white rounded-2xl w-56 h-56 mx-auto flex items-center justify-center shadow-lg" id="qrcode">
+        <!-- QR injected by JS -->
+      </div>
+
+      <div class="space-y-1">
+        <p class="text-xs font-semibold text-slate-200">Phone ke camera se scan karein</p>
+        <p class="text-[11px] text-slate-400">Dono device (Phone aur Laptop) same Wi-Fi par hone chahiye.</p>
+        <p id="qrUrlText" class="text-xs font-mono text-emerald-400 pt-1 select-all break-all"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
